@@ -9,10 +9,10 @@ import {
     eachDayOfInterval, eachMonthOfInterval, getDay, addMonths, 
     isToday, isSameMonth, addWeeks, addYears, isSameYear
 } from 'date-fns';
-import startOfWeek from 'date-fns/startOfWeek';
-import startOfMonth from 'date-fns/startOfMonth';
-import startOfYear from 'date-fns/startOfYear';
-import subMonths from 'date-fns/subMonths';
+import { startOfWeek } from 'date-fns/startOfWeek';
+import { startOfMonth } from 'date-fns/startOfMonth';
+import { startOfYear } from 'date-fns/startOfYear';
+import { subMonths } from 'date-fns/subMonths';
 
 interface StatisticsProps {
   transactions: Transaction[];
