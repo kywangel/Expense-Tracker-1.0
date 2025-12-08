@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 
 interface DashboardProps {
   transactions: Transaction[];
-  categoryBudgets: Record<string, number>;
+  currentMonthBudgets: Record<string, number>; // Renamed for clarity
   incomeCategories: string[];
   expenseCategories: string[];
   investmentCategories: string[];
@@ -15,7 +15,7 @@ const EXPENSE_CHART_COLORS = ['#B91C1C', '#DC2626', '#EF4444', '#F87171', '#FCA5
 const INVESTMENT_CHART_COLORS = ['#2563EB', '#3B82F6', '#60A5FA', '#93C5FD', '#BFDBFE'];
 
 
-const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryBudgets, incomeCategories, expenseCategories, investmentCategories }) => {
+const Dashboard: React.FC<DashboardProps> = ({ transactions, currentMonthBudgets, incomeCategories, expenseCategories, investmentCategories }) => {
   const [viewModes, setViewModes] = useState({
     income: 'table',
     expenses: 'table',
@@ -85,7 +85,7 @@ const Dashboard: React.FC<DashboardProps> = ({ transactions, categoryBudgets, in
             <div className="divide-y divide-gray-100">
               {categories.map(cat => {
                 const tracked = spendingMap[cat] || 0;
-                const budget = categoryBudgets[cat] || 0;
+                const budget = currentMonthBudgets[cat] || 0;
                 const percent = budget > 0 ? (Math.abs(tracked) / budget) * 100 : 0;
                 const remaining = budget - Math.abs(tracked);
                 

@@ -11,21 +11,32 @@ import Database from './components/Database';
 import { Transaction, AppView, AppSettings, FoundItem, MatchedItemPair } from './types';
 import { fetchTransactions } from './services/sheetService';
 import { DEFAULT_SHEET_ID, DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INVESTMENT_CATEGORIES } from './constants';
+import { format } from 'date-fns';
 
 const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.DASHBOARD);
   
   const [settings, setSettings] = useState<AppSettings>(() => {
     const saved = localStorage.getItem('appSettings');
-    const defaults = { 
+    const defaults: AppSettings = { 
         sheetDbUrl: DEFAULT_SHEET_ID, 
         monthlyBudget: 3000,
-        categoryBudgets: {},
+        monthlyCategoryBudgets: {},
         incomeCategories: DEFAULT_INCOME_CATEGORIES,
         expenseCategories: DEFAULT_EXPENSE_CATEGORIES,
         investmentCategories: DEFAULT_INVESTMENT_CATEGORIES
     };
-    return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        // Migration for old data structure
+        if (parsed.categoryBudgets && !parsed.monthlyCategoryBudgets) {
+            const currentMonthKey = format(new Date(), 'yyyy-MM');
+            parsed.monthlyCategoryBudgets = { [currentMonthKey]: parsed.categoryBudgets };
+            delete parsed.categoryBudgets;
+        }
+        return { ...defaults, ...parsed };
+    }
+    return defaults;
   });
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
@@ -151,12 +162,16 @@ const App: React.FC = () => {
         prev.map(t => t.category === oldName ? { ...t, category: newName.trim() } : t)
     );
     
-    if (settings.categoryBudgets[oldName]) {
-        const newBudgets = { ...settings.categoryBudgets };
-        newBudgets[newName.trim()] = newBudgets[oldName];
-        delete newBudgets[oldName];
-        setSettings(prev => ({ ...prev, categoryBudgets: newBudgets }));
-    }
+    // Update budgets
+    const newMonthlyBudgets = { ...settings.monthlyCategoryBudgets };
+    Object.keys(newMonthlyBudgets).forEach(monthKey => {
+      if (newMonthlyBudgets[monthKey][oldName]) {
+        newMonthlyBudgets[monthKey][newName.trim()] = newMonthlyBudgets[monthKey][oldName];
+        delete newMonthlyBudgets[monthKey][oldName];
+      }
+    });
+    setSettings(prev => ({ ...prev, monthlyCategoryBudgets: newMonthlyBudgets }));
+
 
     showNotification(`Renamed "${oldName}" to "${newName.trim()}"`);
   };
@@ -169,10 +184,18 @@ const App: React.FC = () => {
     setSettings(prev => ({ ...prev, [key]: reorderedCategories }));
   };
 
-  const handleUpdateCategoryBudget = (category: string, amount: number) => {
-      const newBudgets = { ...settings.categoryBudgets, [category]: amount };
-      const newSettings = { ...settings, categoryBudgets: newBudgets };
-      handleSaveSettings(newSettings);
+  const handleUpdateCategoryBudget = (monthKey: string, category: string, amount: number) => {
+      const newMonthlyBudgets = { ...settings.monthlyCategoryBudgets };
+      const currentMonthBudgets = { ...(newMonthlyBudgets[monthKey] || {}) };
+      
+      if (amount > 0) {
+        currentMonthBudgets[category] = amount;
+      } else {
+        delete currentMonthBudgets[category];
+      }
+      
+      newMonthlyBudgets[monthKey] = currentMonthBudgets;
+      setSettings(prev => ({ ...prev, monthlyCategoryBudgets: newMonthlyBudgets }));
   };
 
   const handleAddTransaction = (t: Transaction) => {
@@ -205,6 +228,9 @@ const App: React.FC = () => {
     }
   };
 
+  const currentMonthKey = useMemo(() => format(new Date(), 'yyyy-MM'), []);
+  const currentMonthBudgets = useMemo(() => settings.monthlyCategoryBudgets[currentMonthKey] || {}, [settings.monthlyCategoryBudgets, currentMonthKey]);
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 flex flex-col font-sans relative">
       {notification && (
@@ -227,12 +253,11 @@ const App: React.FC = () => {
       </div>
 
       <main className="flex-1 px-6 pt-2 pb-6 max-w-2xl mx-auto w-full">
-        {view === AppView.DASHBOARD && <Dashboard transactions={sortedTransactions} categoryBudgets={settings.categoryBudgets} incomeCategories={settings.incomeCategories} expenseCategories={settings.expenseCategories} investmentCategories={settings.investmentCategories} />}
+        {view === AppView.DASHBOARD && <Dashboard transactions={sortedTransactions} currentMonthBudgets={currentMonthBudgets} incomeCategories={settings.incomeCategories} expenseCategories={settings.expenseCategories} investmentCategories={settings.investmentCategories} />}
         {view === AppView.ADD_TRANSACTION && <AddTransaction onAdd={handleAddTransaction} sheetDbUrl={settings.sheetDbUrl} incomeCategories={settings.incomeCategories} expenseCategories={settings.expenseCategories} investmentCategories={settings.investmentCategories} />}
-        {/* Fix: Pass the required expenseCategories prop to the Statistics component. */}
         {view === AppView.STATISTICS && <Statistics transactions={sortedTransactions} incomeCategories={settings.incomeCategories} investmentCategories={settings.investmentCategories} expenseCategories={settings.expenseCategories} />}
         {view === AppView.DATABASE && <Database transactions={sortedTransactions} onUpdate={handleUpdateTransaction} onDelete={handleDeleteTransaction} settings={settings} onRefresh={handleRefreshFromSheet} />}
-        {view === AppView.BUDGET && <Budgeting onUpdateBudget={handleUpdateCategoryBudget} settings={settings} transactions={sortedTransactions} onBack={() => setView(AppView.SETTINGS)}/>}
+        {view === AppView.BUDGET && <Budgeting onUpdateBudget={handleUpdateCategoryBudget} settings={settings} onBack={() => setView(AppView.SETTINGS)} onShowNotification={showNotification}/>}
         {view === AppView.AI_TOOLS && <AiTools 
             sheetDbUrl={settings.sheetDbUrl} 
             onAddTransaction={handleAddTransaction} 

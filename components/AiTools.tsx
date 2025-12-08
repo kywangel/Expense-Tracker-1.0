@@ -50,7 +50,8 @@ const AiTools: React.FC<AiToolsProps> = ({
 
     try {
       let allResults: FoundItem[] = [];
-      for (const file of Array.from(files)) {
+      // FIX: Explicitly cast FileList to a File array to resolve type inference issues.
+      for (const file of Array.from(files) as File[]) {
           const base64 = await fileToGenerativePart(file);
           const results = await analyzeStatement(base64, file.type);
           allResults.push(...results.map((r, i) => ({ ...r, id: `ai-${file.name}-${i}-${Date.now()}` })));

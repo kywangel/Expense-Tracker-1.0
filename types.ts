@@ -34,8 +34,8 @@ export interface InvestmentEntry {
 
 export interface AppSettings {
   sheetDbUrl: string;
-  monthlyBudget: number;
-  categoryBudgets: Record<string, number>;
+  monthlyBudget: number; // Kept for potential future use or legacy
+  monthlyCategoryBudgets: Record<string, Record<string, number>>; // Keyed by 'YYYY-MM'
   // Dynamic category lists
   incomeCategories: string[];
   expenseCategories: string[];

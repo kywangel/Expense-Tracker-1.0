@@ -13,6 +13,7 @@ type FilterType = 'all' | 'income' | 'expense' | 'investment';
 
 const Database: React.FC<DatabaseProps> = ({ transactions, onUpdate, onDelete, settings, onRefresh }) => {
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null); // State for delete modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [filter, setFilter] = useState<FilterType>('all');
   const [visibleMonths, setVisibleMonths] = useState<Record<string, boolean>>({});
@@ -45,7 +46,6 @@ const Database: React.FC<DatabaseProps> = ({ transactions, onUpdate, onDelete, s
   const sortedMonths = useMemo(() => Object.keys(groupedTransactions).sort().reverse(), [groupedTransactions]);
 
   useEffect(() => {
-    // Automatically expand the most recent month when the component loads or sortedMonths change.
     if (sortedMonths.length > 0) {
       const mostRecentMonth = sortedMonths[0];
       if (visibleMonths[mostRecentMonth] === undefined) {
@@ -81,9 +81,14 @@ const Database: React.FC<DatabaseProps> = ({ transactions, onUpdate, onDelete, s
   };
 
   const handleDeleteClick = (txId: string) => {
-    if (window.confirm("Are you sure you want to delete this transaction? This action cannot be undone.")) {
-      onDelete(txId);
+    setItemToDelete(txId); // Open confirmation modal
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete) {
+      onDelete(itemToDelete);
     }
+    setItemToDelete(null); // Close modal
   };
 
   const handleSave = (updatedTx: Transaction) => {
@@ -178,7 +183,21 @@ const Database: React.FC<DatabaseProps> = ({ transactions, onUpdate, onDelete, s
                 </div>
             )
         })}
+
         {isModalOpen && editingTx && <EditModal tx={editingTx} onSave={handleSave} onClose={() => setIsModalOpen(false)} settings={settings} />}
+        
+        {itemToDelete && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+              <div className="bg-white w-full max-w-xs rounded-2xl p-6 shadow-2xl animate-fade-in-up text-center">
+                <h3 className="text-lg font-bold text-gray-800 mb-2">Delete Transaction?</h3>
+                <p className="text-sm text-gray-500 mb-6">Are you sure you want to delete this item? This action cannot be undone.</p>
+                <div className="flex space-x-3">
+                  <button onClick={() => setItemToDelete(null)} className="flex-1 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold">Cancel</button>
+                  <button onClick={confirmDelete} className="flex-1 py-2 rounded-lg bg-red-500 text-white font-semibold">Yes, Delete</button>
+                </div>
+              </div>
+            </div>
+        )}
     </div>
   );
 };
